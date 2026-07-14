@@ -20,7 +20,9 @@
   },
   "devDependencies": {
     "@pokit/core": "^0.6.0",
+    "@pokit/terminal": "^0.6.0",
     "@types/bun": "latest",
+    "pokit": "0.3.2",
     "typescript": "^5.6.0"
   }
 }

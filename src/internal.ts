@@ -26,7 +26,7 @@ export function normalizeGroups(p: ReleaseOptions['packages']): {
   }
   const names = Object.keys(p);
   if (names.length === 0) {
-    throw new Error('releaseRecipe: `packages` map must contain at least one group');
+    throw new Error('release: `packages` map must contain at least one group');
   }
   return { groups: p, names, multi: names.length > 1 };
 }

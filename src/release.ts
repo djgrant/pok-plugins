@@ -10,12 +10,12 @@ import { publishCommand } from './publish';
  * @example
  * // pok.config.ts
  * export default defineConfig({
- *   plugins: [releaseRecipe({
+ *   plugins: [release({
  *     packages: { files: ['packages/a/package.json'], names: ['a'] },
  *   })],
  * });
  */
-export function releaseRecipe(opts: ReleaseOptions): Mountable {
+export function release(opts: ReleaseOptions): Mountable {
   return fromStatic({
     version: versionCommand(opts),
     publish: publishCommand(opts),
