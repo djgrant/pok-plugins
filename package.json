@@ -1,6 +1,6 @@
 {
   "name": "pok-plugins",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Reusable pok (pokit) command recipes: shared release/publish/version flows mounted as plugins.",
   "type": "module",
   "license": "MIT",
