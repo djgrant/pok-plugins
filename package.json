@@ -1,0 +1,26 @@
+{
+  "name": "pok-plugins",
+  "version": "0.0.0",
+  "description": "Reusable pok (pokit) command recipes: shared release/publish/version flows mounted as plugins.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "@pokit/core": ">=0.6.0"
+  },
+  "dependencies": {
+    "bumpp": "^10.3.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@pokit/core": "^0.6.0",
+    "@types/bun": "latest",
+    "typescript": "^5.6.0"
+  }
+}
