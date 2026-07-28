@@ -35,3 +35,16 @@ export interface ReleaseOptions {
   /** bumpp prerelease identifier. Default `rc`. */
   preid?: string;
 }
+
+export interface DocsOptions {
+  /** Site name used in success messages, e.g. `notation-docs`. */
+  name: string;
+  /** Docs site directory, relative to the repository root. Default `./docs`. */
+  dir?: string;
+  /**
+   * Dev server port. Default `3000`, shared by every repo — the dev server
+   * leaves Vite's `strictPort` off, so a busy port falls through to the next
+   * free one.
+   */
+  port?: number;
+}
