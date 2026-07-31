@@ -4,10 +4,12 @@ import { z } from 'zod';
 import { $ } from 'bun';
 import type { ReleaseOptions } from './types';
 import {
-  DEFAULT_BUILD,
+  buildCommands,
   DEFAULT_INSTALL,
   DEFAULT_REGISTRY,
   normalizeGroups,
+  publishedPackages,
+  readPackageName,
 } from './internal';
 
 /**
@@ -19,7 +21,6 @@ import {
 export function publishCommand(opts: ReleaseOptions): CommandConfig {
   const { groups, names, multi } = normalizeGroups(opts.packages);
   const install = opts.install ?? DEFAULT_INSTALL;
-  const build = opts.build ?? DEFAULT_BUILD;
   const npmRegistry = opts.registry ?? DEFAULT_REGISTRY;
 
   const context: Record<string, unknown> = {
@@ -50,14 +51,19 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
     run: async (r, ctx) => {
       const c = ctx.context as { dryRun?: boolean; verdaccio?: boolean; packages?: string };
       const group = groups[multi ? c.packages! : 'default']!;
+      const published = publishedPackages(group);
+      if (published.length === 0) {
+        throw new Error('publish: every package in the group is `publish: false`');
+      }
+      const builds = buildCommands(group);
       const useVerdaccio = Boolean(opts.verdaccio && c.verdaccio);
       const registry = useVerdaccio
         ? process.env.VERDACCIO_REGISTRY || 'http://localhost:4873/'
         : npmRegistry;
 
-      const filterArgs = group.names?.length
-        ? group.names.map((n) => `--filter "${n}"`).join(' ')
-        : '-r';
+      const filterArgs = published
+        .map((p) => `--filter "${readPackageName(p.file)}"`)
+        .join(' ');
       const dryRunFlag = c.dryRun ? ' --dry-run' : '';
       const gitCheckFlag = c.dryRun || useVerdaccio ? ' --no-git-checks' : '';
 
@@ -72,9 +78,11 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
         await g.activity('Install workspace dependencies', async () => {
           await r.exec(install);
         });
-        await g.activity('Build packages', async () => {
-          await r.exec(build);
-        });
+        for (const command of builds) {
+          await g.activity(`Build: ${command}`, async () => {
+            await r.exec(command);
+          });
+        }
         await g.activity('Publish packages', async () => {
           // Interactive so npm can prompt for OTP / browser auth.
           await r.exec(

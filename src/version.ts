@@ -43,7 +43,7 @@ export function versionCommand(opts: ReleaseOptions): CommandConfig {
 
       await versionBump({
         release,
-        files: [...group.files],
+        files: group.packages.map((p) => p.file),
         push: !c.skipPush,
         tag: group.tag ?? DEFAULT_TAG,
         commit: group.commit ?? DEFAULT_COMMIT,

@@ -11,7 +11,9 @@ import { publishCommand } from './publish';
  * // pok.config.ts
  * export default defineConfig({
  *   plugins: [release({
- *     packages: { files: ['packages/a/package.json'], names: ['a'] },
+ *     packages: [
+ *       { file: 'packages/a/package.json', build: 'pnpm --filter a run build' },
+ *     ],
  *   })],
  * });
  */

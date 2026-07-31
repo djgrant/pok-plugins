@@ -8,11 +8,7 @@ export default defineConfig({
   appName: 'pok-plugins',
   plugins: [
     release({
-      packages: {
-        files: ['package.json'],
-        names: ['pok-plugins'],
-      },
-      build: 'pnpm exec tsc --noEmit',
+      packages: [{ file: 'package.json', build: 'pnpm exec tsc --noEmit' }],
     }),
   ],
 });
