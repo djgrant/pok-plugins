@@ -50,6 +50,15 @@ export function readPackageName(file: string): string {
   return name;
 }
 
+/** Version read from a manifest file (package.json). */
+export function readPackageVersion(file: string): string {
+  const version = readManifest(file).version;
+  if (typeof version !== 'string' || version.length === 0) {
+    throw new Error(`release: manifest ${file} has no \`version\` field`);
+  }
+  return version;
+}
+
 function readManifest(file: string): { name?: unknown; version?: unknown } {
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as { name?: unknown; version?: unknown };

@@ -50,8 +50,16 @@ export interface ReleaseOptions {
   verdaccio?: boolean;
   /** Install step before publish. Default `pnpm install --frozen-lockfile`. */
   install?: string;
-  /** bumpp prerelease identifier. Default `rc`. */
+  /** bumpp prerelease identifier. Default `rc`. Ignored with `changesets`. */
   preid?: string;
+  /**
+   * Version with changesets instead of bumpp. Mounts a `changeset` command
+   * (record a pending change) and a `version` command that runs `changeset
+   * version` (bumps + changelogs), refreshes the lockfile, commits, tags, and
+   * pushes. The repo must have `@changesets/cli` installed and a
+   * `.changeset/config.json` (use `fixed` groups there for lockstep versions).
+   */
+  changesets?: boolean;
 }
 
 export interface DocsOptions {
