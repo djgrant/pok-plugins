@@ -8,6 +8,7 @@ import {
   DEFAULT_INSTALL,
   DEFAULT_REGISTRY,
   normalizeGroups,
+  prereleaseDistTag,
   publishedPackages,
   readPackageName,
 } from './internal';
@@ -64,6 +65,9 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
       const filterArgs = published
         .map((p) => `--filter "${readPackageName(p.file)}"`)
         .join(' ');
+      // Prereleases must not become `latest`: tag them with their identifier.
+      const distTag = prereleaseDistTag(group);
+      const distTagFlag = distTag ? ` --tag ${distTag}` : '';
       const dryRunFlag = c.dryRun ? ' --dry-run' : '';
       const gitCheckFlag = c.dryRun || useVerdaccio ? ' --no-git-checks' : '';
 
@@ -86,7 +90,7 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
         await g.activity('Publish packages', async () => {
           // Interactive so npm can prompt for OTP / browser auth.
           await r.exec(
-            `pnpm ${filterArgs} publish --access public --registry ${registry}${dryRunFlag}${gitCheckFlag}`,
+            `pnpm ${filterArgs} publish --access public --registry ${registry}${distTagFlag}${dryRunFlag}${gitCheckFlag}`,
             { interactive: !c.dryRun },
           );
         });

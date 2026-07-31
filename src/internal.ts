@@ -43,16 +43,43 @@ export function publishedPackages(group: PackageGroup) {
 
 /** npm package name read from a manifest file (package.json). */
 export function readPackageName(file: string): string {
-  let manifest: { name?: unknown };
+  const name = readManifest(file).name;
+  if (typeof name !== 'string' || name.length === 0) {
+    throw new Error(`publish: manifest ${file} has no \`name\` field`);
+  }
+  return name;
+}
+
+function readManifest(file: string): { name?: unknown; version?: unknown } {
   try {
-    manifest = JSON.parse(readFileSync(file, 'utf8')) as { name?: unknown };
+    return JSON.parse(readFileSync(file, 'utf8')) as { name?: unknown; version?: unknown };
   } catch (error) {
     throw new Error(`publish: cannot read manifest ${file}: ${String(error)}`);
   }
-  if (typeof manifest.name !== 'string' || manifest.name.length === 0) {
-    throw new Error(`publish: manifest ${file} has no \`name\` field`);
+}
+
+/**
+ * npm dist-tag for the group's prerelease versions, e.g. `rc` for `1.2.0-rc.3`.
+ * `null` for stable versions (npm's default `latest` applies). Every published
+ * manifest must agree — a mix of stable and prerelease, or of different
+ * identifiers, has no single correct tag.
+ */
+export function prereleaseDistTag(group: PackageGroup): string | null {
+  const tags = new Set<string | null>();
+  for (const pkg of publishedPackages(group)) {
+    const version = readManifest(pkg.file).version;
+    if (typeof version !== 'string') {
+      throw new Error(`publish: manifest ${pkg.file} has no \`version\` field`);
+    }
+    const prerelease = /^[^-+]+-([0-9A-Za-z-]+)/.exec(version);
+    tags.add(prerelease ? prerelease[1]! : null);
   }
-  return manifest.name;
+  if (tags.size > 1) {
+    throw new Error(
+      `publish: mixed versions across the group (${[...tags].map((t) => t ?? 'stable').join(', ')}); publish them separately`,
+    );
+  }
+  return tags.values().next().value ?? null;
 }
 
 /** Build commands for the group's published packages, deduplicated in order. */
