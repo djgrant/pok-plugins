@@ -48,8 +48,6 @@ export interface ReleaseOptions {
   packages: ReleasePackage[] | PackageGroup | Record<string, PackageGroup>;
   /** Publish registry. Default `https://registry.npmjs.org/`. */
   registry?: string;
-  /** Expose a `--verdaccio` flag on `publish` for local-registry testing. */
-  verdaccio?: boolean;
   /** Install step before publish. Default `pnpm install --frozen-lockfile`. */
   install?: string;
   /** bumpp prerelease identifier. Default `rc`. Ignored with `changesets`. */

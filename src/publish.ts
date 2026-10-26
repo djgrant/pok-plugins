@@ -7,6 +7,7 @@ import {
   buildCommands,
   DEFAULT_INSTALL,
   DEFAULT_REGISTRY,
+  groupSchema,
   normalizeGroups,
   prereleaseDistTag,
   publishedPackages,
@@ -27,40 +28,35 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
   const install = opts.install ?? DEFAULT_INSTALL;
   const npmRegistry = opts.registry ?? DEFAULT_REGISTRY;
 
-  const context: Record<string, unknown> = {
-    dryRun: {
-      from: 'flag',
-      schema: z.boolean().default(false),
-      description: 'Perform a dry run without actually publishing',
-    },
-  };
-  if (opts.verdaccio) {
-    context.verdaccio = {
-      from: 'flag',
-      schema: z.boolean().default(false),
-      description: 'Publish to local Verdaccio (VERDACCIO_REGISTRY, default http://localhost:4873/) instead of npmjs',
-    };
-  }
-  if (multi) {
-    context.packages = {
-      from: 'flag',
-      schema: z.enum(names as [string, ...string[]]),
-      description: `Package group to publish: ${names.join(', ')}`,
-    };
-  }
-
   return defineCommand({
     label: 'Publish packages',
-    context: context as never,
+    context: {
+      dryRun: {
+        from: 'flag',
+        schema: z.boolean().default(false),
+        description: 'Perform a dry run without actually publishing',
+      },
+      verdaccio: {
+        from: 'flag',
+        schema: z.boolean().default(false),
+        description: 'Publish to local Verdaccio (VERDACCIO_REGISTRY, default http://localhost:4873/) instead of npmjs',
+      },
+      packages: {
+        from: 'flag',
+        // Required (so pok prompts) only when there is a group to choose.
+        schema: groupSchema(names, multi),
+        description: `Package group to publish: ${names.join(', ')}`,
+      },
+    },
     run: async (r, ctx) => {
-      const c = ctx.context as { dryRun?: boolean; verdaccio?: boolean; packages?: string };
-      const group = groups[multi ? c.packages! : 'default']!;
+      const c = ctx.context;
+      const group = groups[c.packages ?? 'default']!;
       const published = publishedPackages(group);
       if (published.length === 0) {
         throw new Error('publish: every package in the group is `publish: false`');
       }
       const builds = buildCommands(group);
-      const useVerdaccio = Boolean(opts.verdaccio && c.verdaccio);
+      const useVerdaccio = c.verdaccio;
       const registry = useVerdaccio
         ? process.env.VERDACCIO_REGISTRY || 'http://localhost:4873/'
         : npmRegistry;

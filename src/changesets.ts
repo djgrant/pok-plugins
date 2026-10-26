@@ -40,9 +40,9 @@ export function changesetsVersionCommand(opts: ReleaseOptions): CommandConfig {
         schema: z.boolean().optional(),
         description: 'Skip pushing the commit and tags to remote',
       },
-    } as never,
+    },
     run: async (r, ctx) => {
-      const c = ctx.context as { skipPush?: boolean };
+      const c = ctx.context;
       const before = new Map(
         Object.entries(groups).map(([name, g]) => [
           name,

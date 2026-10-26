@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { z } from 'zod';
 import type { PackageGroup, ReleaseOptions } from './types';
 
 export const DEFAULT_REGISTRY = 'https://registry.npmjs.org/';
@@ -32,6 +33,15 @@ export function normalizeGroups(p: ReleaseOptions['packages']): {
     throw new Error('release: `packages` map must contain at least one group');
   }
   return { groups: p, names, multi: names.length > 1 };
+}
+
+/**
+ * Schema for the `--packages` group selector: required when there are several
+ * groups to choose from, optional (and unused) for a single group.
+ */
+export function groupSchema(names: string[], multi: boolean) {
+  const schema = z.enum(names as [string, ...string[]]);
+  return multi ? schema : schema.optional();
 }
 
 /** Packages in the group that publish to npm (not marked `publish: false`). */
