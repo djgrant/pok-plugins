@@ -1,9 +1,11 @@
 import { defineCommand } from '@pokit/core';
 import type { CommandConfig } from '@pokit/core';
 import { z } from 'zod';
+import { homedir } from 'node:os';
 import { $ } from 'bun';
 import type { ReleaseOptions } from './types';
 import {
+  binSpecs,
   buildCommands,
   DEFAULT_INSTALL,
   DEFAULT_REGISTRY,
@@ -14,10 +16,18 @@ import {
 } from './internal';
 
 /**
+ * Directory of the pnpm project that holds this machine's globally-installed
+ * CLIs (its `node_modules/.bin` is on PATH). Machine config, not project
+ * config: unset means published CLIs are not installed locally.
+ */
+const GLOBAL_DIR_ENV = 'POK_GLOBAL_DIR';
+
+/**
  * `publish` command: install → build → `pnpm publish`, wrapped in a sequenced
- * activity group. The normal flow is `pok version` (push a tag a Release
- * workflow publishes from); this is the manual fallback plus `--dry-run`
- * inspection and, when enabled, `--verdaccio` for local testing.
+ * activity group, then installs the just-published CLIs (packages with a `bin`)
+ * into `$POK_GLOBAL_DIR` so the machine dogfoods what shipped. Run after
+ * `pok version`; also supports `--dry-run` inspection and, when enabled,
+ * `--verdaccio` for local testing.
  */
 export function publishCommand(opts: ReleaseOptions): CommandConfig {
   const { groups, names, multi } = normalizeGroups(opts.packages);
@@ -98,9 +108,46 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
 
       if (c.dryRun) {
         r.reporter.info('Dry run complete. No packages were published.');
-      } else {
-        r.reporter.success(`Published to ${registry}`);
+        return;
       }
+      r.reporter.success(`Published to ${registry}`);
+
+      const specs = binSpecs(group);
+      const globalDir = process.env[GLOBAL_DIR_ENV]?.replace(/^~(?=\/|$)/, homedir());
+      if (specs.length === 0 || useVerdaccio) return;
+      if (!globalDir) {
+        r.reporter.info(`Set ${GLOBAL_DIR_ENV} to install ${specs.join(', ')} locally after publish.`);
+        return;
+      }
+
+      await r.group(`Install published CLIs into ${globalDir}`, { layout: 'sequence' }, async (g) => {
+        await g.activity('Wait for published versions to land on the registry', async () => {
+          // npm is eventually consistent: a version can 404 for a few seconds after publish.
+          const maxAttempts = 30;
+          const pending = new Set(specs);
+          for (let attempt = 1; attempt <= maxAttempts && pending.size > 0; attempt++) {
+            for (const spec of [...pending]) {
+              const res = await $`npm view ${spec} version --prefer-online --registry ${registry}`
+                .quiet()
+                .nothrow();
+              if (res.exitCode === 0 && res.stdout.toString().trim()) pending.delete(spec);
+            }
+            if (pending.size > 0) await Bun.sleep(2000);
+          }
+          if (pending.size > 0) {
+            throw new Error(`Timed out waiting for ${[...pending].join(', ')} on ${registry}`);
+          }
+        });
+        await g.activity(`Install ${specs.join(', ')}`, async () => {
+          // Exact versions, so a lagging dist-tag can't install the previous
+          // release. The just-published versions are by definition younger than
+          // any minimumReleaseAge the global project enforces.
+          await r.exec(
+            ['pnpm', 'add', '--dir', globalDir, '--config.minimum-release-age=0', ...specs],
+            { retry: { maxAttempts: 4, delay: 3000 } },
+          );
+        });
+      });
     },
   }) as CommandConfig;
 }

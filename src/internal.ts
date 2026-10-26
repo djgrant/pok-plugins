@@ -59,9 +59,9 @@ export function readPackageVersion(file: string): string {
   return version;
 }
 
-function readManifest(file: string): { name?: unknown; version?: unknown } {
+function readManifest(file: string): { name?: unknown; version?: unknown; bin?: unknown } {
   try {
-    return JSON.parse(readFileSync(file, 'utf8')) as { name?: unknown; version?: unknown };
+    return JSON.parse(readFileSync(file, 'utf8')) as { name?: unknown; version?: unknown; bin?: unknown };
   } catch (error) {
     throw new Error(`publish: cannot read manifest ${file}: ${String(error)}`);
   }
@@ -100,4 +100,11 @@ export function buildCommands(group: PackageGroup): string[] {
     }
   }
   return commands;
+}
+
+/** `name@version` specs for the group's published packages that ship a `bin`. */
+export function binSpecs(group: PackageGroup): string[] {
+  return publishedPackages(group)
+    .filter((p) => readManifest(p.file).bin !== undefined)
+    .map((p) => `${readPackageName(p.file)}@${readPackageVersion(p.file)}`);
 }

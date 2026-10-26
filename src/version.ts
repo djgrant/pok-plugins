@@ -7,8 +7,7 @@ import { DEFAULT_COMMIT, DEFAULT_PREID, DEFAULT_TAG, normalizeGroups } from './i
 
 /**
  * `version` command: bumps the configured package.json files with bumpp,
- * commits, and tags. Pushing the tag is what a Release workflow publishes from;
- * `publish` is the manual fallback.
+ * commits, tags, and pushes. Follow with `pok publish`.
  *
  * `pok version [release-type]` — e.g. `pok version patch`. No release-type means
  * bumpp prompts interactively.
