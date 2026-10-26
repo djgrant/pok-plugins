@@ -16,8 +16,8 @@ importers:
         version: 4.4.3
     devDependencies:
       '@pokit/core':
-        specifier: ^0.6.0
-        version: 0.6.0(zod@4.4.3)
+        specifier: ^0.12.0
+        version: 0.12.0(zod@4.4.3)
       '@types/bun':
         specifier: latest
         version: 1.4.4
@@ -42,8 +42,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@pokit/core@0.6.0':
-    resolution: {integrity: sha512-qQAXpc20HWjF+G9DwSJFmY0cupiqm9erF/ohhjfsSz3GtXu4ZfZuaLuUf4pW3QDJJjEXTg62Arsh9uJqDqpj0A==}
+  '@pokit/core@0.12.0':
+    resolution: {integrity: sha512-JmqR3PE8Kq4V42vOK0rSUlddtuyJCtP7RRrVWpCnyXLb7KMwYqLYeoflWrD8VNVXMIit/nJqPPbRV2x23QCufw==}
     engines: {bun: '>=1.0.0', node: '>=18.0.0'}
     peerDependencies:
       zod: ^4.3.6
@@ -278,7 +278,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
 
-  '@pokit/core@0.6.0(zod@4.4.3)':
+  '@pokit/core@0.12.0(zod@4.4.3)':
     dependencies:
       '@folder/xdg': 4.0.1
       fast-glob: 3.3.3

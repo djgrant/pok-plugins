@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@pokit/core@0.12.0'
