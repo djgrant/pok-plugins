@@ -1,5 +1,3 @@
-import type { Runner } from '@pokit/core';
-
 /**
  * One release unit. The npm name comes from the manifest's `name` field. A
  * published package must state its `build` (a command, or `false` for
@@ -60,27 +58,6 @@ export interface ReleaseOptions {
    * `.changeset/config.json` (use `fixed` groups there for lockstep versions).
    */
   changesets?: boolean;
-  /**
-   * Called after a real (non-dry-run) publish, once every published version is
-   * fetchable from the registry — e.g. to install the shipped CLI locally.
-   *
-   * @example
-   * onPublished: (pkgs, r) =>
-   *   r.exec(['pnpm', 'add', '-g', ...pkgs.filter((p) => p.bin).map((p) => `${p.name}@${p.version}`)]),
-   */
-  onPublished?: (packages: PublishedPackage[], r: Runner) => void | Promise<void>;
-}
-
-/** A package version that `publish` shipped and the registry now serves. */
-export interface PublishedPackage {
-  name: string;
-  version: string;
-  /** Manifest path (relative to project root). */
-  file: string;
-  /** Whether the manifest declares a `bin`. */
-  bin: boolean;
-  /** Registry it was published to (npmjs, or Verdaccio with `--verdaccio`). */
-  registry: string;
 }
 
 export interface DocsOptions {

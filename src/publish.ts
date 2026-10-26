@@ -2,7 +2,7 @@ import { defineCommand } from '@pokit/core';
 import type { CommandConfig, Runner } from '@pokit/core';
 import { z } from 'zod';
 import { $ } from 'bun';
-import type { PublishedPackage, ReleaseOptions } from './types';
+import type { ReleaseOptions } from './types';
 import {
   buildCommands,
   DEFAULT_INSTALL,
@@ -17,11 +17,28 @@ import {
 } from './internal';
 
 /**
+ * What `publish` shipped, returned once the registry serves every version.
+ * `packages` is empty for a dry run. A project's `post:publish` command takes
+ * it as `input` (undefined when `pok post:publish` is invoked directly).
+ */
+export const PublishResult = z.object({
+  registry: z.string(),
+  packages: z.array(
+    z.object({
+      name: z.string(),
+      version: z.string(),
+      /** Whether the manifest declares a `bin` (the package ships a CLI). */
+      bin: z.boolean(),
+    }),
+  ),
+});
+export type PublishResult = z.infer<typeof PublishResult>;
+
+/**
  * `publish` command: install → build → `pnpm publish`, wrapped in a sequenced
- * activity group. Run after `pok version`; also supports `--dry-run`
- * inspection and, when enabled, `--verdaccio` for local testing. With
- * `onPublished`, waits until every published version is fetchable from the
- * registry, then hands them to the hook.
+ * activity group, then waits until the registry serves every published version
+ * and returns them as {@link PublishResult}. Run after `pok version`; also
+ * supports `--dry-run` inspection and `--verdaccio` for local testing.
  */
 export function publishCommand(opts: ReleaseOptions): CommandConfig {
   const { groups, names, multi } = normalizeGroups(opts.packages);
@@ -30,6 +47,10 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
 
   return defineCommand({
     label: 'Publish packages',
+    output: PublishResult,
+    format(data, reporter) {
+      if (data.packages.length > 0) reporter.success(`Published to ${data.registry}`);
+    },
     context: {
       dryRun: {
         from: 'flag',
@@ -97,26 +118,22 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
 
       if (c.dryRun) {
         r.reporter.info('Dry run complete. No packages were published.');
-        return;
+        return { registry, packages: [] };
       }
-      r.reporter.success(`Published to ${registry}`);
 
-      if (!opts.onPublished) return;
-      const landed: PublishedPackage[] = published.map((p) => ({
+      const packages = published.map((p) => ({
         name: readPackageName(p.file),
         version: readPackageVersion(p.file),
-        file: p.file,
         bin: hasBin(p.file),
-        registry,
       }));
-      await waitForRegistry(r, landed, registry);
-      await opts.onPublished(landed, r);
+      await waitForRegistry(r, packages, registry);
+      return { registry, packages };
     },
   }) as CommandConfig;
 }
 
 /** npm is eventually consistent: a version can 404 for a while after publish. */
-async function waitForRegistry(r: Runner, pkgs: PublishedPackage[], registry: string) {
+async function waitForRegistry(r: Runner, pkgs: PublishResult['packages'], registry: string) {
   await r.group('Wait for published versions to land on the registry', { layout: 'sequence' }, async (g) => {
     await g.activity(pkgs.map((p) => `${p.name}@${p.version}`).join(', '), async () => {
       const maxAttempts = 30;
