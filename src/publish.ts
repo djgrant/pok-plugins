@@ -1,11 +1,9 @@
 import { defineCommand } from '@pokit/core';
-import type { CommandConfig } from '@pokit/core';
+import type { CommandConfig, Runner } from '@pokit/core';
 import { z } from 'zod';
-import { homedir } from 'node:os';
 import { $ } from 'bun';
-import type { ReleaseOptions } from './types';
+import type { PublishedPackage, ReleaseOptions } from './types';
 import {
-  binSpecs,
   buildCommands,
   DEFAULT_INSTALL,
   DEFAULT_REGISTRY,
@@ -13,21 +11,16 @@ import {
   prereleaseDistTag,
   publishedPackages,
   readPackageName,
+  readPackageVersion,
+  hasBin,
 } from './internal';
 
 /**
- * Directory of the pnpm project that holds this machine's globally-installed
- * CLIs (its `node_modules/.bin` is on PATH). Machine config, not project
- * config: unset means published CLIs are not installed locally.
- */
-const GLOBAL_DIR_ENV = 'POK_GLOBAL_DIR';
-
-/**
  * `publish` command: install → build → `pnpm publish`, wrapped in a sequenced
- * activity group, then installs the just-published CLIs (packages with a `bin`)
- * into `$POK_GLOBAL_DIR` so the machine dogfoods what shipped. Run after
- * `pok version`; also supports `--dry-run` inspection and, when enabled,
- * `--verdaccio` for local testing.
+ * activity group. Run after `pok version`; also supports `--dry-run`
+ * inspection and, when enabled, `--verdaccio` for local testing. With
+ * `onPublished`, waits until every published version is fetchable from the
+ * registry, then hands them to the hook.
  */
 export function publishCommand(opts: ReleaseOptions): CommandConfig {
   const { groups, names, multi } = normalizeGroups(opts.packages);
@@ -112,42 +105,38 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
       }
       r.reporter.success(`Published to ${registry}`);
 
-      const specs = binSpecs(group);
-      const globalDir = process.env[GLOBAL_DIR_ENV]?.replace(/^~(?=\/|$)/, homedir());
-      if (specs.length === 0 || useVerdaccio) return;
-      if (!globalDir) {
-        r.reporter.info(`Set ${GLOBAL_DIR_ENV} to install ${specs.join(', ')} locally after publish.`);
-        return;
-      }
-
-      await r.group(`Install published CLIs into ${globalDir}`, { layout: 'sequence' }, async (g) => {
-        await g.activity('Wait for published versions to land on the registry', async () => {
-          // npm is eventually consistent: a version can 404 for a few seconds after publish.
-          const maxAttempts = 30;
-          const pending = new Set(specs);
-          for (let attempt = 1; attempt <= maxAttempts && pending.size > 0; attempt++) {
-            for (const spec of [...pending]) {
-              const res = await $`npm view ${spec} version --prefer-online --registry ${registry}`
-                .quiet()
-                .nothrow();
-              if (res.exitCode === 0 && res.stdout.toString().trim()) pending.delete(spec);
-            }
-            if (pending.size > 0) await Bun.sleep(2000);
-          }
-          if (pending.size > 0) {
-            throw new Error(`Timed out waiting for ${[...pending].join(', ')} on ${registry}`);
-          }
-        });
-        await g.activity(`Install ${specs.join(', ')}`, async () => {
-          // Exact versions, so a lagging dist-tag can't install the previous
-          // release. The just-published versions are by definition younger than
-          // any minimumReleaseAge the global project enforces.
-          await r.exec(
-            ['pnpm', 'add', '--dir', globalDir, '--config.minimum-release-age=0', ...specs],
-            { retry: { maxAttempts: 4, delay: 3000 } },
-          );
-        });
-      });
+      if (!opts.onPublished) return;
+      const landed: PublishedPackage[] = published.map((p) => ({
+        name: readPackageName(p.file),
+        version: readPackageVersion(p.file),
+        file: p.file,
+        bin: hasBin(p.file),
+        registry,
+      }));
+      await waitForRegistry(r, landed, registry);
+      await opts.onPublished(landed, r);
     },
   }) as CommandConfig;
+}
+
+/** npm is eventually consistent: a version can 404 for a while after publish. */
+async function waitForRegistry(r: Runner, pkgs: PublishedPackage[], registry: string) {
+  await r.group('Wait for published versions to land on the registry', { layout: 'sequence' }, async (g) => {
+    await g.activity(pkgs.map((p) => `${p.name}@${p.version}`).join(', '), async () => {
+      const maxAttempts = 30;
+      const pending = new Set(pkgs.map((p) => `${p.name}@${p.version}`));
+      for (let attempt = 1; attempt <= maxAttempts && pending.size > 0; attempt++) {
+        for (const spec of [...pending]) {
+          const res = await $`npm view ${spec} version --prefer-online --registry ${registry}`
+            .quiet()
+            .nothrow();
+          if (res.exitCode === 0 && res.stdout.toString().trim()) pending.delete(spec);
+        }
+        if (pending.size > 0) await Bun.sleep(2000);
+      }
+      if (pending.size > 0) {
+        throw new Error(`Timed out waiting for ${[...pending].join(', ')} on ${registry}`);
+      }
+    });
+  });
 }

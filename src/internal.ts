@@ -102,9 +102,7 @@ export function buildCommands(group: PackageGroup): string[] {
   return commands;
 }
 
-/** `name@version` specs for the group's published packages that ship a `bin`. */
-export function binSpecs(group: PackageGroup): string[] {
-  return publishedPackages(group)
-    .filter((p) => readManifest(p.file).bin !== undefined)
-    .map((p) => `${readPackageName(p.file)}@${readPackageVersion(p.file)}`);
+/** Whether a manifest declares a `bin` (the package ships a CLI). */
+export function hasBin(file: string): boolean {
+  return readManifest(file).bin !== undefined;
 }
