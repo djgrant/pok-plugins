@@ -1,7 +1,6 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { defineCommand } from '@pokit/core';
-import type { CommandConfig } from '@pokit/core';
 import { z } from 'zod';
 import type { ReleaseOptions } from './types';
 import {
@@ -12,13 +11,13 @@ import {
 } from './internal';
 
 /** `changeset` command: record a pending change for the next release. */
-export function changesetCommand(): CommandConfig {
+export function changesetCommand() {
   return defineCommand({
     label: 'Describe a change for the next release',
     run: async (r) => {
       await r.exec('pnpm exec changeset', { interactive: true });
     },
-  }) as CommandConfig;
+  });
 }
 
 /**
@@ -29,7 +28,7 @@ export function changesetCommand(): CommandConfig {
  * version moved, and pushes. Groups here only decide tag/commit templates and
  * what `publish` ships; the bump itself is workspace-wide.
  */
-export function changesetsVersionCommand(opts: ReleaseOptions): CommandConfig {
+export function changesetsVersionCommand(opts: ReleaseOptions) {
   const { groups } = normalizeGroups(opts.packages);
 
   return defineCommand({
@@ -94,5 +93,5 @@ export function changesetsVersionCommand(opts: ReleaseOptions): CommandConfig {
       }
       r.reporter.success(`Released ${tags.join(', ')}`);
     },
-  }) as CommandConfig;
+  });
 }

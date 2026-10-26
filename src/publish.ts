@@ -1,5 +1,5 @@
 import { defineCommand } from '@pokit/core';
-import type { CommandConfig, Runner } from '@pokit/core';
+import type { Runner } from '@pokit/core';
 import { z } from 'zod';
 import { $ } from 'bun';
 import type { ReleaseOptions } from './types';
@@ -40,7 +40,7 @@ export type PublishResult = z.infer<typeof PublishResult>;
  * and returns them as {@link PublishResult}. Run after `pok version`; also
  * supports `--dry-run` inspection and `--verdaccio` for local testing.
  */
-export function publishCommand(opts: ReleaseOptions): CommandConfig {
+export function publishCommand(opts: ReleaseOptions) {
   const { groups, names, multi } = normalizeGroups(opts.packages);
   const install = opts.install ?? DEFAULT_INSTALL;
   const npmRegistry = opts.registry ?? DEFAULT_REGISTRY;
@@ -129,7 +129,7 @@ export function publishCommand(opts: ReleaseOptions): CommandConfig {
       await waitForRegistry(r, packages, registry);
       return { registry, packages };
     },
-  }) as CommandConfig;
+  });
 }
 
 /** npm is eventually consistent: a version can 404 for a while after publish. */

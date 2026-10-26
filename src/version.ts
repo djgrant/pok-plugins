@@ -1,5 +1,4 @@
 import { defineCommand } from '@pokit/core';
-import type { CommandConfig } from '@pokit/core';
 import { z } from 'zod';
 import { versionBump } from 'bumpp';
 import type { ReleaseOptions } from './types';
@@ -12,7 +11,7 @@ import { DEFAULT_COMMIT, DEFAULT_PREID, DEFAULT_TAG, groupSchema, normalizeGroup
  * `pok version [release-type]` — e.g. `pok version patch`. No release-type means
  * bumpp prompts interactively.
  */
-export function versionCommand(opts: ReleaseOptions): CommandConfig {
+export function versionCommand(opts: ReleaseOptions) {
   const { groups, names, multi } = normalizeGroups(opts.packages);
   const preid = opts.preid ?? DEFAULT_PREID;
 
@@ -47,5 +46,5 @@ export function versionCommand(opts: ReleaseOptions): CommandConfig {
         confirm: !skipConfirm,
       });
     },
-  }) as CommandConfig;
+  });
 }

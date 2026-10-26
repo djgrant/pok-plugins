@@ -1,5 +1,5 @@
 import { defineCommand, fromStatic } from '@pokit/core';
-import type { CommandConfig, Mountable } from '@pokit/core';
+import type { Mountable } from '@pokit/core';
 import type { DocsOptions } from './types';
 
 const DEFAULT_DIR = './docs';
@@ -27,7 +27,7 @@ export function docs(opts: DocsOptions): Mountable {
   return fromStatic({
     docs: defineCommand({
       label: 'Documentation site',
-    }) as CommandConfig,
+    }),
 
     'docs.dev': defineCommand({
       label: 'Start dev server',
@@ -35,7 +35,7 @@ export function docs(opts: DocsOptions): Mountable {
         r.reporter.info(`Starting documentation site at http://localhost:${port}`);
         await r.exec(`pnpm exec docs dev --port ${port}`, { cwd: dir });
       },
-    }) as CommandConfig,
+    }),
 
     'docs.build': defineCommand({
       label: 'Build for production',
@@ -43,7 +43,7 @@ export function docs(opts: DocsOptions): Mountable {
         await r.exec('pnpm exec docs build', { cwd: dir });
         r.reporter.success(`Built ${opts.name}`);
       },
-    }) as CommandConfig,
+    }),
 
     // Deployment config is inline in the site's vite.config.ts, so wrangler
     // picks up the emitted .wrangler/deploy/config.json — there is no
@@ -54,6 +54,6 @@ export function docs(opts: DocsOptions): Mountable {
         await r.exec('pnpm exec docs deploy', { cwd: dir });
         r.reporter.success(`Deployed ${opts.name}`);
       },
-    }) as CommandConfig,
+    }),
   });
 }

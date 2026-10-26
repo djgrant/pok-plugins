@@ -1,2 +1,3 @@
 minimumReleaseAgeExclude:
   - '@pokit/core@0.12.0'
+  - '@pokit/core@0.13.0'
