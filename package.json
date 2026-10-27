@@ -19,7 +19,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@pokit/core": "^0.13.0",
+    "@pokit/core": "^0.13.1",
     "@types/bun": "latest",
     "typescript": "^5.6.0"
   }
