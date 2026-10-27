@@ -162,7 +162,7 @@ async function waitForRegistry(r: Runner, pkgs: PublishResult['packages'], regis
             .nothrow();
           if (res.exitCode === 0 && res.stdout.toString().trim()) pending.delete(spec);
         }
-        if (pending.size > 0) await Bun.sleep(2000);
+        if (pending.size > 0) await Bun.sleep(5000);
       }
       if (pending.size > 0) {
         throw new Error(`Timed out waiting for ${[...pending].join(', ')} on ${registry}`);
