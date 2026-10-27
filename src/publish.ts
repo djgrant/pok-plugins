@@ -2,6 +2,9 @@ import { defineCommand } from '@pokit/core';
 import type { Runner } from '@pokit/core';
 import { z } from 'zod';
 import { $ } from 'bun';
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import type { ReleaseOptions } from './types';
 import {
   buildCommands,
@@ -119,8 +122,30 @@ export function publishCommand(opts: ReleaseOptions) {
         version: readPackageVersion(p.file),
       }));
       await waitForRegistry(r, packages, registry);
+      await runPublishedHook(r, { registry, packages });
       return { registry, packages };
     },
+  });
+}
+
+/**
+ * Machine-local hook run once a publish lands, if present.
+ * It receives `{ registry, packages, repo }` as JSON, e.g.
+ * to update the repos that depend on what shipped.
+ */
+export const PUBLISHED_HOOK = join(homedir(), '.config', 'pok', 'hooks', 'published');
+
+async function runPublishedHook(r: Runner, result: PublishResult) {
+  if (!existsSync(PUBLISHED_HOOK)) return;
+  await r.group('Run the published hook', { layout: 'sequence' }, async (g) => {
+    await g.activity(PUBLISHED_HOOK, async () => {
+      // The packages are published either way: report a failing hook, don't fail on it.
+      try {
+        await r.exec([PUBLISHED_HOOK, JSON.stringify({ ...result, repo: r.cwd })]);
+      } catch (error) {
+        r.reporter.warn(`${PUBLISHED_HOOK} failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    });
   });
 }
 
