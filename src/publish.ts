@@ -124,20 +124,37 @@ export function publishCommand(opts: ReleaseOptions) {
 async function waitForRegistry(r: Runner, pkgs: PublishResult['packages'], registry: string) {
   await r.group('Wait for published versions to land on the registry', { layout: 'sequence' }, async (g) => {
     await g.activity(pkgs.map((p) => `${p.name}@${p.version}`).join(', '), async () => {
-      const maxAttempts = 30;
-      const pending = new Set(pkgs.map((p) => `${p.name}@${p.version}`));
-      for (let attempt = 1; attempt <= maxAttempts && pending.size > 0; attempt++) {
-        for (const spec of [...pending]) {
-          const res = await $`npm view ${spec} version --prefer-online --registry ${registry}`
-            .quiet()
-            .nothrow();
-          if (res.exitCode === 0 && res.stdout.toString().trim()) pending.delete(spec);
+      const deadline = Date.now() + 10 * 60_000;
+      let pending = pkgs;
+      while (pending.length > 0) {
+        const landed = await Promise.all(pending.map((p) => isPublished(p, registry)));
+        pending = pending.filter((_, i) => !landed[i]);
+        if (pending.length === 0) break;
+        if (Date.now() > deadline) {
+          const specs = pending.map((p) => `${p.name}@${p.version}`).join(', ');
+          throw new Error(`Timed out waiting for ${specs} on ${registry}`);
         }
-        if (pending.size > 0) await Bun.sleep(5000);
-      }
-      if (pending.size > 0) {
-        throw new Error(`Timed out waiting for ${[...pending].join(', ')} on ${registry}`);
+        await Bun.sleep(5000);
       }
     });
   });
+}
+
+async function isPublished(pkg: PublishResult['packages'][number], registry: string) {
+  // The packument (`/<name>`, what `npm view` reads) sits behind a CDN with a
+  // 5-minute max-age, so a copy cached before the publish keeps reporting the
+  // version as missing. The per-version document with a unique query string
+  // bypasses that cache.
+  const base = registry.replace(/\/+$/, '');
+  const url = `${base}/${pkg.name.replace('/', '%2f')}/${pkg.version}?t=${Date.now()}`;
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (res.ok) return true;
+    if (res.status === 404) return false;
+  } catch {}
+  // Non-404 failures (e.g. 401 from a private registry) need npm's .npmrc auth.
+  const res = await $`npm view ${pkg.name}@${pkg.version} version --prefer-online --registry ${registry}`
+    .quiet()
+    .nothrow();
+  return res.exitCode === 0 && res.stdout.toString().trim() !== '';
 }
