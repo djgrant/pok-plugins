@@ -13,24 +13,17 @@ import {
   publishedPackages,
   readPackageName,
   readPackageVersion,
-  hasBin,
 } from './internal';
 
 /**
  * What `publish` shipped, returned once the registry serves every version.
- * `packages` is empty for a dry run. A project's `post:publish` command takes
- * it as `input` (undefined when `pok post:publish` is invoked directly).
+ * `packages` is empty for a dry run. A project's own `post:publish` (a
+ * `commands/publish.ts` exporting `post`) takes it as `input`; it is undefined
+ * when `pok post:publish` is invoked directly.
  */
 export const PublishResult = z.object({
   registry: z.string(),
-  packages: z.array(
-    z.object({
-      name: z.string(),
-      version: z.string(),
-      /** Whether the manifest declares a `bin` (the package ships a CLI). */
-      bin: z.boolean(),
-    }),
-  ),
+  packages: z.array(z.object({ name: z.string(), version: z.string() })),
 });
 export type PublishResult = z.infer<typeof PublishResult>;
 
@@ -124,7 +117,6 @@ export function publishCommand(opts: ReleaseOptions) {
       const packages = published.map((p) => ({
         name: readPackageName(p.file),
         version: readPackageVersion(p.file),
-        bin: hasBin(p.file),
       }));
       await waitForRegistry(r, packages, registry);
       return { registry, packages };
