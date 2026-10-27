@@ -3,6 +3,7 @@ import type { Mountable } from '@pokit/core';
 import type { ReleaseOptions } from './types';
 import { versionCommand } from './version';
 import { publishCommand } from './publish';
+import { postPublishCommand } from './post-publish';
 import { changesetCommand, changesetsVersionCommand } from './changesets';
 
 /**
@@ -24,10 +25,12 @@ export function release(opts: ReleaseOptions): Mountable {
       changeset: changesetCommand(),
       version: changesetsVersionCommand(opts),
       publish: publishCommand(opts),
+      'post:publish': postPublishCommand(opts),
     });
   }
   return fromStatic({
     version: versionCommand(opts),
     publish: publishCommand(opts),
+    'post:publish': postPublishCommand(opts),
   });
 }

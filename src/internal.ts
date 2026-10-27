@@ -44,6 +44,13 @@ export function groupSchema(names: string[], multi: boolean) {
   return multi ? schema : schema.optional();
 }
 
+/** Registry `publish` targets: local Verdaccio with `--verdaccio`, else the configured one. */
+export function publishRegistry(opts: ReleaseOptions, verdaccio: boolean): string {
+  return verdaccio
+    ? process.env.VERDACCIO_REGISTRY || 'http://localhost:4873/'
+    : opts.registry ?? DEFAULT_REGISTRY;
+}
+
 /** Packages in the group that publish to npm (not marked `publish: false`). */
 export function publishedPackages(group: PackageGroup) {
   return group.packages.filter(

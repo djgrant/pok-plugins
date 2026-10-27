@@ -2,27 +2,23 @@ import { defineCommand } from '@pokit/core';
 import type { Runner } from '@pokit/core';
 import { z } from 'zod';
 import { $ } from 'bun';
-import { existsSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import type { ReleaseOptions } from './types';
 import {
   buildCommands,
   DEFAULT_INSTALL,
-  DEFAULT_REGISTRY,
   groupSchema,
   normalizeGroups,
   prereleaseDistTag,
   publishedPackages,
+  publishRegistry,
   readPackageName,
   readPackageVersion,
 } from './internal';
 
 /**
  * What `publish` shipped, returned once the registry serves every version.
- * `packages` is empty for a dry run. A project's own `post:publish` (a
- * `commands/publish.ts` exporting `post`) takes it as `input`; it is undefined
- * when `pok post:publish` is invoked directly.
+ * `packages` is empty for a dry run. `post:publish` takes it as `input`; it is
+ * undefined when `pok post:publish` is invoked directly.
  */
 export const PublishResult = z.object({
   registry: z.string(),
@@ -39,7 +35,6 @@ export type PublishResult = z.infer<typeof PublishResult>;
 export function publishCommand(opts: ReleaseOptions) {
   const { groups, names, multi } = normalizeGroups(opts.packages);
   const install = opts.install ?? DEFAULT_INSTALL;
-  const npmRegistry = opts.registry ?? DEFAULT_REGISTRY;
 
   return defineCommand({
     label: 'Publish packages',
@@ -74,9 +69,7 @@ export function publishCommand(opts: ReleaseOptions) {
       }
       const builds = buildCommands(group);
       const useVerdaccio = c.verdaccio;
-      const registry = useVerdaccio
-        ? process.env.VERDACCIO_REGISTRY || 'http://localhost:4873/'
-        : npmRegistry;
+      const registry = publishRegistry(opts, useVerdaccio);
 
       const filterArgs = published
         .map((p) => `--filter "${readPackageName(p.file)}"`)
@@ -122,30 +115,8 @@ export function publishCommand(opts: ReleaseOptions) {
         version: readPackageVersion(p.file),
       }));
       await waitForRegistry(r, packages, registry);
-      await runPublishedHook(r, { registry, packages });
       return { registry, packages };
     },
-  });
-}
-
-/**
- * Machine-local hook run once a publish lands, if present.
- * It receives `{ registry, packages, repo }` as JSON, e.g.
- * to update the repos that depend on what shipped.
- */
-export const PUBLISHED_HOOK = join(homedir(), '.config', 'pok', 'hooks', 'published');
-
-async function runPublishedHook(r: Runner, result: PublishResult) {
-  if (!existsSync(PUBLISHED_HOOK)) return;
-  await r.group('Run the published hook', { layout: 'sequence' }, async (g) => {
-    await g.activity(PUBLISHED_HOOK, async () => {
-      // The packages are published either way: report a failing hook, don't fail on it.
-      try {
-        await r.exec([PUBLISHED_HOOK, JSON.stringify({ ...result, repo: r.cwd })]);
-      } catch (error) {
-        r.reporter.warn(`${PUBLISHED_HOOK} failed: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    });
   });
 }
 
